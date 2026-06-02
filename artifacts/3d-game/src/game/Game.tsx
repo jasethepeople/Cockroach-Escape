@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { KeyboardControls } from '@react-three/drei';
 import { useGameStore } from './store';
@@ -28,20 +28,30 @@ const KEY_MAP = [
   { name: Controls.right, keys: ['ArrowRight', 'KeyD'] },
 ];
 
+function getStartPos(levelNum: number) {
+  const cfg = LEVELS[levelNum - 1];
+  const startZ = cfg ? cfg.roomSize.depth / 2 - 2.5 : 0;
+  return new THREE.Vector3(0, 0.12, startZ);
+}
+
 function GameScene() {
   const { level, collected, required, phase, collectItem } = useGameStore();
-  const cockroachPos = useRef(new THREE.Vector3(0, 0.12, 0));
-  const [posState, setPosState] = useState(new THREE.Vector3(0, 0.12, 0));
-  const [items, setItems] = useState<CollectibleItem[]>([]);
+  const startPos = useMemo(() => getStartPos(level), [level]);
+  const cockroachPos = useRef(startPos.clone());
+  const [posState, setPosState] = useState(() => startPos.clone());
+  const [items, setItems] = useState<CollectibleItem[]>(() =>
+    getLevelCollectibles(level).map((item) => ({ ...item, collected: false }))
+  );
 
   const config = LEVELS[level - 1];
-  const obstacles = getLevelObstacles(level);
+  const obstacles = useMemo(() => getLevelObstacles(level), [level]);
 
-  // Re-initialize items when level changes
+  // Re-initialize when level changes
   useEffect(() => {
+    const sp = getStartPos(level);
+    cockroachPos.current = sp.clone();
+    setPosState(sp.clone());
     setItems(getLevelCollectibles(level).map((item) => ({ ...item, collected: false })));
-    cockroachPos.current = new THREE.Vector3(0, 0.12, (config?.roomSize.depth ?? 20) / 2 - 2.5);
-    setPosState(cockroachPos.current.clone());
   }, [level]);
 
   const handlePositionChange = useCallback((pos: THREE.Vector3) => {
