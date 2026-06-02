@@ -1,16 +1,9 @@
 import * as THREE from 'three';
 import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { useKeyboardControls } from '@react-three/drei';
 import { useGameStore } from '../store';
+import { getControls } from '../controls';
 import type { LevelConfig } from '../types';
-
-enum Controls {
-  forward = 'forward',
-  back = 'back',
-  left = 'left',
-  right = 'right',
-}
 
 interface CockroachProps {
   config: LevelConfig;
@@ -19,14 +12,12 @@ interface CockroachProps {
 
 const SPEED = 5.5;
 const ROTATION_SPEED = 8;
-const LEG_COUNT = 3;
 
 export function Cockroach({ config, onPositionChange }: CockroachProps) {
   const groupRef = useRef<THREE.Group>(null!);
   const velocity = useRef(new THREE.Vector3());
   const targetAngle = useRef(0);
   const legTime = useRef(0);
-  const [, getState] = useKeyboardControls<Controls>();
   const phase = useGameStore((s) => s.phase);
   const invincible = useGameStore((s) => s.invincible);
 
@@ -37,7 +28,6 @@ export function Cockroach({ config, onPositionChange }: CockroachProps) {
   const minZ = -depth / 2 + wallMargin;
   const maxZ = depth / 2 - wallMargin;
 
-  // Leg refs (6 legs: 3 left, 3 right)
   const legRefs = useRef<(THREE.Mesh | null)[]>(Array(6).fill(null));
 
   useEffect(() => {
@@ -48,15 +38,15 @@ export function Cockroach({ config, onPositionChange }: CockroachProps) {
 
   useFrame((_, delta) => {
     if (phase !== 'playing') return;
-    const controls = getState();
+
+    const controls = getControls();
     const moving = controls.forward || controls.back || controls.left || controls.right;
 
-    // Movement
     const dir = new THREE.Vector3();
     if (controls.forward) dir.z -= 1;
-    if (controls.back) dir.z += 1;
-    if (controls.left) dir.x -= 1;
-    if (controls.right) dir.x += 1;
+    if (controls.back)    dir.z += 1;
+    if (controls.left)    dir.x -= 1;
+    if (controls.right)   dir.x += 1;
 
     if (dir.lengthSq() > 0) {
       dir.normalize();
@@ -66,7 +56,6 @@ export function Cockroach({ config, onPositionChange }: CockroachProps) {
       velocity.current.lerp(new THREE.Vector3(), Math.min(delta * 14, 1));
     }
 
-    // Smooth rotation
     if (moving && groupRef.current) {
       const current = groupRef.current.rotation.y;
       let diff = targetAngle.current - current;
@@ -75,32 +64,27 @@ export function Cockroach({ config, onPositionChange }: CockroachProps) {
       groupRef.current.rotation.y += diff * Math.min(ROTATION_SPEED * delta, 1);
     }
 
-    // Apply movement
     if (groupRef.current) {
       const newX = Math.max(minX, Math.min(maxX, groupRef.current.position.x + velocity.current.x * delta));
       const newZ = Math.max(minZ, Math.min(maxZ, groupRef.current.position.z + velocity.current.z * delta));
       groupRef.current.position.x = newX;
       groupRef.current.position.z = newZ;
 
-      // Scurry animation - body bobs slightly
       const speed = velocity.current.length();
       if (speed > 0.5) {
         legTime.current += delta * speed * 2;
         groupRef.current.position.y = 0.12 + Math.sin(legTime.current * 4) * 0.015;
       }
 
-      // Animate legs
-      if (legRefs.current) {
-        for (let i = 0; i < 6; i++) {
-          const leg = legRefs.current[i];
-          if (!leg) continue;
-          const side = i < 3 ? 1 : -1;
-          const row = i % 3;
-          const phase_offset = row * (Math.PI * 2 / 3) + (i < 3 ? 0 : Math.PI);
-          const swing = Math.sin(legTime.current * 6 + phase_offset) * 0.25 * Math.min(speed / SPEED, 1);
-          leg.rotation.x = swing;
-          leg.rotation.z = side * (0.4 + Math.abs(swing) * 0.3);
-        }
+      for (let i = 0; i < 6; i++) {
+        const leg = legRefs.current[i];
+        if (!leg) continue;
+        const side = i < 3 ? 1 : -1;
+        const row = i % 3;
+        const phaseOffset = row * (Math.PI * 2 / 3) + (i < 3 ? 0 : Math.PI);
+        const swing = Math.sin(legTime.current * 6 + phaseOffset) * 0.25 * Math.min(speed / SPEED, 1);
+        leg.rotation.x = swing;
+        leg.rotation.z = side * (0.4 + Math.abs(swing) * 0.3);
       }
 
       onPositionChange(groupRef.current.position.clone());
@@ -124,13 +108,13 @@ export function Cockroach({ config, onPositionChange }: CockroachProps) {
 
   return (
     <group ref={groupRef} position={[0, 0.12, 0]}>
-      {/* Main body */}
+      {/* Body */}
       <mesh position={[0, 0, 0]} castShadow>
         <capsuleGeometry args={[0.22, 0.7, 4, 8]} />
         <meshStandardMaterial color={bodyColor} roughness={0.3} metalness={0.1} />
       </mesh>
 
-      {/* Wing covers (elytra) */}
+      {/* Elytra (wing covers) */}
       <mesh position={[0, 0.06, 0.05]} castShadow>
         <boxGeometry args={[0.4, 0.12, 0.68]} />
         <meshStandardMaterial color={wingColor} roughness={0.2} metalness={0.2} />
@@ -151,7 +135,6 @@ export function Cockroach({ config, onPositionChange }: CockroachProps) {
         <sphereGeometry args={[0.045, 6, 6]} />
         <meshStandardMaterial color="#FFFFFF" emissive="#FFFFFF" emissiveIntensity={0.5} />
       </mesh>
-      {/* Pupils */}
       <mesh position={[0.1, 0.06, -0.69]}>
         <sphereGeometry args={[0.025, 6, 6]} />
         <meshStandardMaterial color="#000000" />
@@ -199,7 +182,6 @@ export function Cockroach({ config, onPositionChange }: CockroachProps) {
         </mesh>
       ))}
 
-      {/* Subtle point light on cockroach for visibility */}
       <pointLight position={[0, 0.5, 0]} intensity={0.4} color="#FF8040" distance={3} decay={2} />
     </group>
   );

@@ -1,53 +1,25 @@
 import { useCallback, useEffect, useRef } from 'react';
-
-const KEY_MAP: Record<string, string> = {
-  up: 'ArrowUp',
-  down: 'ArrowDown',
-  left: 'ArrowLeft',
-  right: 'ArrowRight',
-};
-
-function dispatch(key: string, type: 'keydown' | 'keyup') {
-  window.dispatchEvent(
-    new KeyboardEvent(type, {
-      key,
-      code: key === 'ArrowUp' ? 'KeyW'
-        : key === 'ArrowDown' ? 'KeyS'
-        : key === 'ArrowLeft' ? 'KeyA'
-        : 'KeyD',
-      bubbles: true,
-      cancelable: true,
-    })
-  );
-}
+import { setControl } from '../controls';
+import type { ControlState } from '../controls';
 
 interface DPadButtonProps {
-  dir: 'up' | 'down' | 'left' | 'right';
+  dir: keyof ControlState;
   label: string;
   style: React.CSSProperties;
 }
 
 function DPadButton({ dir, label, style }: DPadButtonProps) {
   const pressedRef = useRef(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const startPress = useCallback(() => {
     if (pressedRef.current) return;
     pressedRef.current = true;
-    dispatch(KEY_MAP[dir], 'keydown');
-    // Repeat keydown while held (some browsers throttle repeat)
-    intervalRef.current = setInterval(() => {
-      if (pressedRef.current) dispatch(KEY_MAP[dir], 'keydown');
-    }, 50);
+    setControl(dir, true);
   }, [dir]);
 
   const endPress = useCallback(() => {
     pressedRef.current = false;
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    dispatch(KEY_MAP[dir], 'keyup');
+    setControl(dir, false);
   }, [dir]);
 
   useEffect(() => () => endPress(), [endPress]);
@@ -63,18 +35,17 @@ function DPadButton({ dir, label, style }: DPadButtonProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: 56,
-        height: 56,
-        borderRadius: 8,
-        background: 'rgba(255, 107, 53, 0.18)',
-        border: '2px solid rgba(255, 107, 53, 0.5)',
-        color: 'rgba(255,255,255,0.85)',
-        fontSize: 22,
+        width: 60,
+        height: 60,
+        borderRadius: 10,
+        background: 'rgba(255, 107, 53, 0.22)',
+        border: '2px solid rgba(255, 107, 53, 0.55)',
+        color: 'rgba(255,255,255,0.9)',
+        fontSize: 24,
         userSelect: 'none',
         WebkitUserSelect: 'none',
         touchAction: 'none',
         cursor: 'pointer',
-        transition: 'background 0.08s',
         ...style,
       }}
     >
@@ -84,49 +55,42 @@ function DPadButton({ dir, label, style }: DPadButtonProps) {
 }
 
 export function TouchControls() {
-  // Only show on touch-capable devices
-  const isTouch = window.matchMedia('(pointer: coarse)').matches;
+  const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
   if (!isTouch) return null;
-
-  const PAD = 20; // bottom offset
-  const CENTER_X = 90; // left offset of d-pad center
 
   return (
     <div
       style={{
         position: 'fixed',
-        bottom: PAD,
-        left: 0,
-        width: '100vw',
+        bottom: 24,
+        left: 24,
+        width: 192,
+        height: 192,
         pointerEvents: 'none',
         zIndex: 20,
       }}
     >
-      {/* D-pad cluster */}
-      <div style={{ position: 'absolute', left: CENTER_X - 60, bottom: 0, width: 180, height: 180 }}>
-        {/* Up */}
-        <DPadButton dir="up" label="▲" style={{ top: 0, left: 62 }} />
-        {/* Down */}
-        <DPadButton dir="down" label="▼" style={{ bottom: 0, left: 62 }} />
-        {/* Left */}
-        <DPadButton dir="left" label="◄" style={{ top: 62, left: 0 }} />
-        {/* Right */}
-        <DPadButton dir="right" label="►" style={{ top: 62, right: 0 }} />
-        {/* Center dot */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 67,
-            left: 67,
-            width: 46,
-            height: 46,
-            borderRadius: 8,
-            background: 'rgba(255,107,53,0.08)',
-            border: '2px solid rgba(255,107,53,0.2)',
-            pointerEvents: 'none',
-          }}
-        />
-      </div>
+      {/* Up */}
+      <DPadButton dir="forward" label="▲" style={{ top: 0, left: 66, pointerEvents: 'auto' }} />
+      {/* Down */}
+      <DPadButton dir="back"    label="▼" style={{ bottom: 0, left: 66, pointerEvents: 'auto' }} />
+      {/* Left */}
+      <DPadButton dir="left"   label="◄" style={{ top: 66, left: 0, pointerEvents: 'auto' }} />
+      {/* Right */}
+      <DPadButton dir="right"  label="►" style={{ top: 66, right: 0, pointerEvents: 'auto' }} />
+      {/* Center dot */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 71,
+          left: 71,
+          width: 50,
+          height: 50,
+          borderRadius: 10,
+          background: 'rgba(255,107,53,0.07)',
+          border: '2px solid rgba(255,107,53,0.18)',
+        }}
+      />
     </div>
   );
 }

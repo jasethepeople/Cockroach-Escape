@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { KeyboardControls } from '@react-three/drei';
 import { useGameStore } from './store';
 import { LEVELS, getLevelObstacles, getLevelCollectibles } from './levels';
+import { setupKeyboardControls } from './controls';
 import { Room } from './components/Room';
 import { Cockroach } from './components/Cockroach';
 import { Obstacles } from './components/Obstacles';
@@ -13,20 +13,6 @@ import { FollowCamera } from './components/Camera';
 import { HUD } from './components/HUD';
 import { StartScreen, LevelCompleteScreen, GameOverScreen } from './components/StartScreen';
 import type { CollectibleItem } from './types';
-
-enum Controls {
-  forward = 'forward',
-  back = 'back',
-  left = 'left',
-  right = 'right',
-}
-
-const KEY_MAP = [
-  { name: Controls.forward, keys: ['ArrowUp', 'KeyW'] },
-  { name: Controls.back, keys: ['ArrowDown', 'KeyS'] },
-  { name: Controls.left, keys: ['ArrowLeft', 'KeyA'] },
-  { name: Controls.right, keys: ['ArrowRight', 'KeyD'] },
-];
 
 function getStartPos(levelNum: number) {
   const cfg = LEVELS[levelNum - 1];
@@ -46,7 +32,6 @@ function GameScene() {
   const config = LEVELS[level - 1];
   const obstacles = useMemo(() => getLevelObstacles(level), [level]);
 
-  // Re-initialize when level changes
   useEffect(() => {
     const sp = getStartPos(level);
     cockroachPos.current = sp.clone();
@@ -96,35 +81,54 @@ const isMobile = typeof window !== 'undefined' && window.matchMedia('(pointer: c
 export function Game() {
   const { phase } = useGameStore();
 
+  // Set up keyboard listener once, at the top level — outside the canvas
+  useEffect(() => {
+    return setupKeyboardControls();
+  }, []);
+
+  // Make the root div focusable and auto-focus it so key events land here
+  const rootRef = useRef<HTMLDivElement>(null!);
+  useEffect(() => {
+    rootRef.current?.focus();
+  }, [phase]);
+
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#0A0500', overflow: 'hidden' }}>
+    <div
+      ref={rootRef}
+      tabIndex={0}
+      style={{
+        width: '100vw',
+        height: '100vh',
+        background: '#0A0500',
+        overflow: 'hidden',
+        outline: 'none',
+      }}
+    >
       {phase === 'menu' && <StartScreen />}
       {phase === 'level_complete' && <LevelCompleteScreen />}
       {phase === 'game_over' && <GameOverScreen />}
 
       {phase === 'playing' && (
         <div style={{ position: 'absolute', inset: 0 }}>
-          <KeyboardControls map={KEY_MAP}>
-            <Canvas
-              shadows={!isMobile}
-              dpr={isMobile ? [1, 1.5] : [1, 2]}
-              gl={{
-                antialias: !isMobile,
-                toneMapping: THREE.ACESFilmicToneMapping,
-                toneMappingExposure: 0.85,
-                powerPreference: 'high-performance',
-              }}
-              camera={{
-                fov: 65,
-                near: 0.1,
-                far: isMobile ? 60 : 100,
-                position: [0, 4.5, 7],
-              }}
-              style={{ background: '#0A0500' }}
-            >
-              <GameScene />
-            </Canvas>
-          </KeyboardControls>
+          <Canvas
+            shadows={!isMobile}
+            dpr={isMobile ? [1, 1.5] : [1, 2]}
+            gl={{
+              antialias: !isMobile,
+              toneMapping: THREE.ACESFilmicToneMapping,
+              toneMappingExposure: 0.85,
+              powerPreference: 'high-performance',
+            }}
+            camera={{
+              fov: 65,
+              near: 0.1,
+              far: isMobile ? 60 : 100,
+              position: [0, 4.5, 7],
+            }}
+            style={{ background: '#0A0500' }}
+          >
+            <GameScene />
+          </Canvas>
         </div>
       )}
 
