@@ -1,5 +1,6 @@
 import { useGameStore } from '../store';
 import { LEVELS } from '../levels';
+import { TouchControls } from './TouchControls';
 
 export function HUD() {
   const { health, collected, required, score, level, invincible } = useGameStore();
@@ -132,7 +133,7 @@ export function HUD() {
           textAlign: 'center',
         }}
       >
-        WASD / ARROW KEYS TO MOVE
+        {window.matchMedia('(pointer: coarse)').matches ? 'USE D-PAD TO MOVE' : 'WASD / ARROW KEYS TO MOVE'}
       </div>
 
       {/* Objective hint */}
@@ -194,6 +195,8 @@ export function HUD() {
           }}
         />
       )}
+
+      <TouchControls />
     </div>
   );
 }

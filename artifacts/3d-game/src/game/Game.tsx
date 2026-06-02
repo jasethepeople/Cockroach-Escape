@@ -81,6 +81,8 @@ function GameScene() {
   );
 }
 
+const isMobile = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+
 export function Game() {
   const { phase } = useGameStore();
 
@@ -94,16 +96,18 @@ export function Game() {
         <div style={{ position: 'absolute', inset: 0 }}>
           <KeyboardControls map={KEY_MAP}>
             <Canvas
-              shadows
+              shadows={!isMobile}
+              dpr={isMobile ? [1, 1.5] : [1, 2]}
               gl={{
-                antialias: true,
+                antialias: !isMobile,
                 toneMapping: THREE.ACESFilmicToneMapping,
                 toneMappingExposure: 0.85,
+                powerPreference: 'high-performance',
               }}
               camera={{
                 fov: 65,
                 near: 0.1,
-                far: 100,
+                far: isMobile ? 60 : 100,
                 position: [0, 4.5, 7],
               }}
               style={{ background: '#0A0500' }}
